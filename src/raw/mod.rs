@@ -481,6 +481,30 @@ impl<D: AsRef<[u8]>> Fst<D> {
         last_match
     }
 
+    /// find all keys that are a prefix of the given value.
+    ///
+    /// If the key exists, then `Vec<(value, key_len)>` is returned, where
+    /// `value` is the value associated with the key, and `key_len` is the
+    /// length of the found prefix.
+    #[inline]
+    pub fn find_prefixes(&self, value: &[u8]) -> Vec<(u64, usize)> {
+        let mut node = self.root();
+        let mut out = Output::zero();
+        let mut matches = Vec::new();
+        for (i, &b) in value.iter().enumerate() {
+            if let Some(trans_index) = node.find_input(b) {
+                let t = node.transition(trans_index);
+                node = self.node(t.addr);
+                if node.is_final() {
+                    matches
+                        .push((out.cat(node.final_output()).value(), i + 1));
+                }
+                out = out.cat(t.out);
+            }
+        }
+        matches
+    }
+
     /// Return a lexicographically ordered stream of all key-value pairs in
     /// this fst.
     #[inline]
